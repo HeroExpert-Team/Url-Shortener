@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use App\Models\Url;
 use App\Models\User;
 use PHPUnit\Framework\TestCase;
@@ -8,13 +9,19 @@ use PHPUnit\Framework\Attributes\Test;
 
 final class UserTest extends TestCase
 {
-    # Database setup before each test
+    /**
+     * Database setup before each test.
+     * Starts a database transaction to roll back after each test.
+     */
     protected function setUp(): void
     {
         parent::setUp();
         DB::beginTransaction();
     }
 
+    /**
+     * Rollback the database transaction and reset auto-increment values after each test.
+     */
     protected function tearDown(): void
     {
         DB::rollBack();
@@ -27,18 +34,10 @@ final class UserTest extends TestCase
      * Test if a user can be created and saved in the database.
      */
     #[Test]
-    public function itCanCreateAUser()
+    public function itCanCreateAUser(): void
     {
-        $user = new User([
-            'name' => 'Amirreza',
-            'email' => 'aabrahimi1718@example.com',
-            'otpCode' => '101010',
-            'otpExpired' => (new DateTime())->modify('+10 minutes'),
-            'created_at' => new DateTime(),
-        ]);
-        $user->save();
+        $user = $this->createUser('Amirreza', 'aabrahimi1718@example.com');
 
-        # Assume a find or similar method exists for fetching records
         $savedUser = User::find($user->id);
 
         $this->assertNotNull($savedUser);
@@ -50,72 +49,70 @@ final class UserTest extends TestCase
      * Test if a user can have multiple URLs associated with them.
      */
     #[Test]
-    public function userCanHaveMultipleUrls()
+    public function userCanHaveMultipleUrls(): void
     {
-        $user = new User([
-            'name' => 'Amirreza',
-            'email' => 'amirreza@example.com']);
+        $user = $this->createUser('Amirreza', 'amirreza@example.com');
 
-        $user->save();
-
-        $url1 = new Url([
-            'created_by' => $user->id,
-            'url' => 'https://example.com/1'
-        ]);
-
-        $url2 = new Url([
-            'created_by' => $user->id,
-            'url' => 'https://example.com/2'
-        ]);
-
-        $url1->save();
-        $url2->save();
+        $url1 = $this->createUrl($user, 'https://example.com/1', 'exmpl-1');
+        $url2 = $this->createUrl($user, 'https://example.com/2', 'exmpl-2');
 
         $urls = $user->urls; # Assume urls method retrieves all URLs for this user
 
         $this->assertCount(2, $urls);
-        $this->assertEquals('https://example.com/1', $urls[0]->url);
-        $this->assertEquals('https://example.com/2', $urls[1]->url);
+        $this->assertEquals($url1->url, $urls[0]->url);
+        $this->assertEquals($url2->url, $urls[1]->url);
     }
 
     /**
      * Test that the email field in the User model is unique.
      */
     #[Test]
-    public function emailMustBeUnique()
+    public function emailMustBeUnique(): void
     {
-        $user1 = new User([
-            'name' => 'First User',
-            'email' => 'unique@example.com'
-        ]);
-
-        $user1->save();
-
-        $user2 = new User([
-            'name' => 'Second User',
-            'email' => 'unique@example.com'
-        ]);
-
         $this->expectException(\Exception::class);
-        $user2->save(); // Assuming save() throws an exception for duplicate emails
+
+        $this->createUser('First User', 'unique@example.com');
+        $this->createUser('Second User', 'unique@example.com'); # Should throw exception
     }
 
     /**
      * Test that the OTP expiration time is set correctly and is in the future.
      */
     #[Test]
-    public function otpExpirationIsSetCorrectly()
+    public function otpExpirationIsSetCorrectly(): void
     {
-        $user = new User([
-            'name' => 'Amirreza',
-            'email' => 'amirreza@example.com',
-            'otpCode' => '123456',
-            'otpExpired' => (new DateTime())->modify('+5 minutes'),
-        ]);
- 
-        $user->save();
+        $user = $this->createUser('Amirreza', 'amirreza@example.com', '123456', Carbon::now()->addMinutes(10));
 
         $this->assertNotNull($user->otpExpired);
-        $this->assertGreaterThan(new DateTime(), $user->otpExpired);
+        $this->assertGreaterThan(Carbon::now(), $user->otpExpired);
+    }
+
+    /**
+     * Helper function to create a User instance.
+     */
+    private function createUser(string $name, string $email, string $otpCode = '101010', Carbon $otpExpired = null): User
+    {
+        return User::create([
+            'name' => $name,
+            'email' => $email,
+            'otpCode' => $otpCode,
+            'otpExpired' => $otpExpired ?: Carbon::now()->addMinutes(10),
+            'created_at' => Carbon::now(),
+        ]);
+    }
+
+    /**
+     * Helper function to create a Url instance.
+     */
+    private function createUrl(User $user, string $url, string $shortUrl): Url
+    {
+        return Url::create([
+            'created_by' => $user->id,
+            'url' => $url,
+            'shortUrl' => $shortUrl,
+            'qrCode' => 'qrcode-' . rand(1, 100),
+            'views' => 0,
+            'created_at' => Carbon::now(),
+        ]);
     }
 }

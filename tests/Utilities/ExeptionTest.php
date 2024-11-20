@@ -5,7 +5,7 @@ use PHPUnit\Framework\Attributes\Test;
 use App\Utilities\ExceptionHandler;
 use App\Utilities\Session;
 
-class ExeptionTest extends TestCase
+final class ExeptionTest extends TestCase
 {
     /**
      * Set up a mock session environment before each test.

@@ -4,30 +4,40 @@ use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Database;
 use Illuminate\Support\Facades\Facade;
 
-# Step 1: Set up the application container and Facades
+# Initialize and configure the application container and facades
 $app = new Container();
 Facade::setFacadeApplication($app);
 
-# Step 2: Initialize and configure the Eloquent database manager
+# Initialize Eloquent's database manager
 $database = new Database;
 
-# Add the MySQL connection settings from environment variables
+# Add MySQL connection settings using environment variables
 $database->addConnection([
-    'driver' => 'mysql',             # Specify the database driver (MySQL)
-    'host' => $_ENV['DB_HOST'],       # Database host (e.g., localhost or IP address)
-    'database' => $_ENV['DB_NAME'],   # Database name
-    'username' => $_ENV['DB_USER'],   # Database username
-    'password' => $_ENV['DB_PASS'],   # Database password
-    'charset' => 'utf8',              # Character encoding for the connection
-    'collation' => 'utf8_unicode_ci', # Collation for string comparison (e.g., utf8_unicode_ci)
-    'prefix' => ''                    # Table prefix (optional, default is no prefix)
+    'driver'    => 'mysql',             # Database driver (MySQL)
+    'host'      => $_ENV['DB_HOST'],    # Database host (from environment variable)
+    'database'  => $_ENV['DB_NAME'],    # Database name (from environment variable)
+    'username'  => $_ENV['DB_USER'],    # Database username (from environment variable)
+    'password'  => $_ENV['DB_PASS'],    # Database password (from environment variable)
+    'charset'   => 'utf8',              # Character encoding for the connection
+    'collation' => 'utf8_unicode_ci',   # Collation for string comparison
+    'prefix'    => ''                   # Table prefix (optional)
 ]);
 
-# Step 3: Make the database connection globally accessible
-$database->setAsGlobal(); # Allows global access to the database connection throughout the app
+# Make the database connection globally accessible
+$database->setAsGlobal();   # Enable global access to the database instance
+$database->bootEloquent();  # Boot Eloquent ORM for using models and query builder
 
-# Step 4: Boot Eloquent ORM for full ORM functionality
-$database->bootEloquent(); # Initialize Eloquent features (e.g., query builder, models)
+# Register the database manager instance in the application container
+$app->instance('db', $database->getDatabaseManager()); 
 
-# Step 5: Register the database manager in the container for easier access
-$app->instance('db', $database->getDatabaseManager()); # Make database manager instance available as 'db'
+# Check if the 'migrations' table exists in the database
+$hasMigrations = $database::schema()->hasTable('migrations');
+
+# Create the 'migrations' table if it does not exist
+if (!$hasMigrations) {
+    $database::schema()->create('migrations', function ($table) {
+        $table->increments('id');       # Primary key auto-increment column
+        $table->string('migration');    # Name of the migration file
+        $table->timestamp('created_at')->useCurrent(); # Timestamp of creation with default current time
+    });
+}

@@ -21,7 +21,9 @@
     },
     "scripts": {
         "serve": "php config/serve.php",
-        "php-unit": "php vendor/bin/phpunit --testdox --colors=always"
+        "php-unit": "php vendor/bin/phpunit --testdox --colors=always",
+        "migration": "php database/migration.php",
+        "rollback": "php database/migration.php --rollback"
     },
     "config": {
         "process-timeout": 0

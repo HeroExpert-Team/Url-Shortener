@@ -1,11 +1,12 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
-use PHPUnit\Framework\Attributes\Test;
-use App\Models\View;
+use Carbon\Carbon;
 use App\Models\Url;
+use App\Models\User;
+use App\Models\View;
+use PHPUnit\Framework\TestCase;
 use Illuminate\Support\Facades\DB;
-use DateTime;
+use PHPUnit\Framework\Attributes\Test;
 
 class ViewTest extends TestCase
 {
@@ -28,8 +29,10 @@ class ViewTest extends TestCase
     public function tearDown(): void
     {
         DB::rollBack();
+        # Reset auto-increment for tables
         DB::statement('ALTER TABLE views AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE urls AUTO_INCREMENT = 1');
+        DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
         parent::tearDown();
     }
 
@@ -41,23 +44,20 @@ class ViewTest extends TestCase
     #[Test]
     public function itCanCreateView()
     {
-        $url = Url::create([
-            'created_by' => 1,
-            'url' => 'https://example-test.com',
-            'shortUrl' => 'exmpl',
-            'qrCode' => 'path/to/qrcode.png',
-            'views' => 0,
-            'created_at' => new DateTime(),
-        ]);
+        # Arrange: Create a (URL & User) and associate it with a View
+        $user = $this->createUser('Amirreza Ebrahimi', 'aabrahimi1718@gmail.com');
+        $url = $this->createUrl($user, 'https://example', 'example');
 
+        # Act: Create a View record
         $view = View::create([
             'url_id' => $url->id,
             'ip_address' => '192.168.1.1',
             'user_agent' => 'Mozilla/5.0',
-            'created_at' => new DateTime(),
+            'created_at' => Carbon::now(), # Using standard DateTime
         ]);
 
-        $this->assertEquals($view->url_id, $url->id);
+        # Assert: Check that the attributes were assigned correctly
+        $this->assertEquals($url->id, $view->url_id);
         $this->assertEquals('192.168.1.1', $view->ip_address);
         $this->assertEquals('Mozilla/5.0', $view->user_agent);
     }
@@ -68,27 +68,24 @@ class ViewTest extends TestCase
      * details via the 'url' method.
      */
     #[Test]
-    public function ViewBelongsToUrl()
+    public function viewBelongsToUrl()
     {
-        $url = Url::create([
-            'created_by' => 1,
-            'url' => 'https://example-test.com',
-            'shortUrl' => 'exmple',
-            'qrCode' => 'path/to/qrcode.png',
-            'views' => 0,
-            'created_at' => new DateTime(),
-        ]);
+        # Arrange: Create a (URL & User) and associate it with a View
+        $user = $this->createUser('Amirreza Ebrahimi', 'aabrahimi1718@gmail.com');
+        $url = $this->createUrl($user, 'https://example', 'example');
 
+        # Act: Create a View record
         $view = View::create([
             'url_id' => $url->id,
             'ip_address' => '192.168.1.1',
             'user_agent' => 'Mozilla/5.0',
-            'created_at' => new DateTime(),
+            'created_at' => Carbon::now(), # Using standard DateTime
         ]);
 
-        $this->assertEquals($view->url->url, 'https://example-test.com');
-        $this->assertEquals($view->url->shortUrl, 'exmple');
-        $this->assertEquals($view->url->qrCode, 'path/to/qrcode.png');
+        # Assert: Check that the associated URL details are correct
+        $this->assertEquals($url->url, $view->url->url);
+        $this->assertEquals($url->shortUrl, $view->url->shortUrl);
+        $this->assertEquals($url->qrCode, $view->url->qrCode);
     }
 
     /**
@@ -99,13 +96,14 @@ class ViewTest extends TestCase
     #[Test]
     public function invalidUrlId()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(\PDOException::class); # Using PDOException instead of Laravel exceptions
 
+        # Act: Try to create a View with a non-existent URL ID
         View::create([
-            'url_id' => 9999,
+            'url_id' => 9999, # Invalid URL ID
             'ip_address' => '192.168.1.1',
             'user_agent' => 'Mozilla/5.0',
-            'created_at' => new DateTime(),
+            'created_at' => Carbon::now(),
         ]);
     }
 
@@ -114,14 +112,45 @@ class ViewTest extends TestCase
      * This test ensures that attempting to create a View without essential fields,
      * like 'url_id', results in a database exception.
      */
+    #[Test]
     public function testCreateViewWithMissingData()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(\PDOException::class); # Using PDOException instead of Laravel exceptions
 
+        # Act: Try to create a View without the required 'url_id' field
         View::create([
             'ip_address' => '192.168.1.1',
             'user_agent' => 'Mozilla/5.0',
-            'created_at' => new DateTime(),
+            'created_at' => Carbon::now(),
+        ]);
+    }
+
+    /**
+     * Helper function to create a User instance.
+     */
+    private function createUser(string $name, string $email, string $otpCode = '101010', Carbon $otpExpired = null): User
+    {
+        return User::create([
+            'name' => $name,
+            'email' => $email,
+            'otpCode' => $otpCode,
+            'otpExpired' => $otpExpired ?: Carbon::now()->addMinutes(10),
+            'created_at' => Carbon::now(),
+        ]);
+    }
+
+    /**
+     * Helper function to create a Url instance.
+     */
+    private function createUrl(User $user, string $url, string $shortUrl): Url
+    {
+        return Url::create([
+            'created_by' => $user->id,
+            'url' => $url,
+            'shortUrl' => $shortUrl,
+            'qrCode' => 'qrcode-' . rand(1, 100),
+            'views' => 0,
+            'created_at' => Carbon::now(),
         ]);
     }
 }

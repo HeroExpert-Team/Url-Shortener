@@ -1,29 +1,33 @@
 <?php
 
+use Carbon\Carbon;
 use App\Models\Url;
 use App\Models\User;
 use PHPUnit\Framework\TestCase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 
-
 final class UrlTest extends TestCase
 {
     /**
      * Set up the database connection before each test.
+     * Starts a database transaction to roll back after each test.
      */
     protected function setUp(): void
     {
         parent::setUp();
         DB::beginTransaction();
-        # Code to initialize or reset database here (if needed)
     }
 
+    /**
+     * Rollback the database transaction and reset auto-increment values after each test.
+     */
     protected function tearDown(): void
     {
         DB::rollBack();
-        DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
+        DB::statement('ALTER TABLE views AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE urls AUTO_INCREMENT = 1');
+        DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
         parent::tearDown();
     }
 
@@ -31,16 +35,9 @@ final class UrlTest extends TestCase
      * Test creating a URL model with valid attributes.
      */
     #[Test]
-    public function urlModelCanBeCreatedWithAttributes()
+    public function urlModelCanBeCreatedWithAttributes(): void
     {
-        # Arrange: Create a sample user
-        $user = User::create([
-            'name' => 'Amirreza',
-            'email' => 'aabrahimi1718@example.com',
-            'otpCode' => '101010',
-            'otpExpired' => (new DateTime())->modify('+10 minutes'),
-            'created_at' => new DateTime(),
-        ]);
+        $user = $this->createUser();
 
         # Act: Create a URL instance
         $url = Url::create([
@@ -49,7 +46,7 @@ final class UrlTest extends TestCase
             'shortUrl' => 'exmpl',
             'qrCode' => 'path/to/qrcode.png',
             'views' => 0,
-            'created_at' => new DateTime(),
+            'created_at' => Carbon::now(),
         ]);
 
         # Assert: Check that the attributes were set correctly
@@ -64,10 +61,10 @@ final class UrlTest extends TestCase
      * Test the relationship between Url and User models.
      */
     #[Test]
-    public function urlBelongsToUser()
+    public function urlBelongsToUser(): void
     {
         # Arrange: Create a user and associate a URL with the user
-        $user = User::create(['email' => 'test@example.com', 'password' => 'password']);
+        $user = $this->createUser();
         $url = Url::create([
             'created_by' => $user->id,
             'url' => 'https://example.com',
@@ -83,12 +80,12 @@ final class UrlTest extends TestCase
      * Test if the URL view count increments correctly.
      */
     #[Test]
-    public function urlViewCountIncrementsCorrectly()
+    public function urlViewCountIncrementsCorrectly(): void
     {
         # Arrange: Create a URL model instance with an initial view count
         $url = Url::create([
             'url' => 'https://example.com',
-            'created_by' => 1,
+            'created_by' => $this->createUser()->id,
             'shortUrl' => 'exmpl',
             'views' => 0
         ]);
@@ -105,11 +102,11 @@ final class UrlTest extends TestCase
      * Test mass assignment protection for the Url model.
      */
     #[Test]
-    public function massAssignmentProtection()
+    public function massAssignmentProtection(): void
     {
         # Act: Create a URL instance with an extra unfillable attribute
         $url = Url::create([
-            'created_by' => 1,
+            'created_by' => $this->createUser()->id,
             'url' => 'https://example.com',
             'shortUrl' => 'exmpl',
             'unfillable_attribute' => 'some_value' # This should not be set
@@ -117,5 +114,19 @@ final class UrlTest extends TestCase
 
         # Assert: Check that 'unfillable_attribute' is not assigned
         $this->assertFalse(isset($url->unfillable_attribute));
+    }
+
+    /**
+     * Helper function to create a User instance.
+     */
+    private function createUser(): User
+    {
+        return User::create([
+            'name' => 'Amirreza',
+            'email' => 'aabrahimi1718@example.com',
+            'otpCode' => '101010',
+            'otpExpired' => Carbon::now()->addMinutes(10),
+            'created_at' => Carbon::now(),
+        ]);
     }
 }

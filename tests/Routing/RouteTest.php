@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use App\Core\Routing\Route;
 
-class RouteTest extends TestCase
+final class RouteTest extends TestCase
 {
     /**
      * This setup method is executed before each test case.

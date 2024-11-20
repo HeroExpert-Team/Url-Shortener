@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use App\Utilities\Session;
 
-class SessionTest extends TestCase
+final class SessionTest extends TestCase
 {
     /**
      * Setup method executed before each test.

@@ -4,7 +4,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use App\Core\Request;
 
-class RequestTest extends TestCase
+final class RequestTest extends TestCase
 {
     /**
      * Set up the test environment by mocking global superglobals

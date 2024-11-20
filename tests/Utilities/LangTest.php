@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use App\Utilities\Lang;
 
-class LangTest extends TestCase
+final class LangTest extends TestCase
 {
     /**
      * Setup method to define the base path and create temporary language files for testing.
